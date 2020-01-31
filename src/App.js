@@ -6,11 +6,12 @@ import {
 import 'react-notifications/lib/notifications.css';
 import OnlineStatusMock from './OnlineStatusMock';
 import './App.css';
+import {compose} from "redux";
 
-/* 
-Feel free to edit this all. If you don't need the HoC, go remove it. 
-If you wish to save the state somewhere else, go for it. 
-Just keep rendering <OnlineStatusMock /> 
+/*
+Feel free to edit this all. If you don't need the HoC, go remove it.
+If you wish to save the state somewhere else, go for it.
+Just keep rendering <OnlineStatusMock />
 */
 
 const withOnlineStatus = WrappedComponent =>
@@ -32,11 +33,35 @@ const withOnlineStatus = WrappedComponent =>
     }
   };
 
-class App extends React.Component {
-  componentDidUpdate({ isOnline }) {
-    NotificationManager.info(isOnline ? 'Online' : 'Offline');
-  }
+const INTERNET_TIMEOUT = 2000;
 
+const withPushNotifications = WrappedComponent =>
+  class WithPushNotifications extends React.Component {
+    componentDidUpdate(prevProps) {
+      const { isOnline } = this.props;
+
+      if (isOnline === prevProps.isOnline) return;
+      if (this.timeout) return;
+
+      if (isOnline) return NotificationManager.info('Online');
+
+      this.timeout = setTimeout(this.notifyIfOffline, INTERNET_TIMEOUT);
+    }
+
+    notifyIfOffline = () => {
+      const { isOnline } = this.props;
+      if (!isOnline) {
+        NotificationManager.info('Offline');
+      }
+      this.timeout = null;
+    };
+
+    render() {
+      return <WrappedComponent {...this.props} />
+    }
+  };
+
+class App extends React.Component {
   render() {
     const { isOnline } = this.props;
     return (
@@ -50,4 +75,7 @@ class App extends React.Component {
   }
 }
 
-export default withOnlineStatus(App);
+export default compose(
+    withOnlineStatus,
+    withPushNotifications
+)(App);
